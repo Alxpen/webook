@@ -15,26 +15,15 @@ import (
 )
 
 func main() {
+	db := initDB()
+	server := initWebServer()
+	u := initUser(db)
+	u.RegisterRoutes(server)
+	server.Run(":8080")
+}
 
-	db, err := gorm.Open(mysql.Open("root:root@tcp(localhost:13316)/webook"))
-	if err != nil {
-		// 只会在初始化过程中panic
-		// panic 相当于整个 goroutine 结束
-		// 一旦初始化过程出错， 应用就不要启动了
-		panic(err)
-	}
-
-	err = dao.InitTable(db)
-	if err != nil {
-		panic(err)
-	}
-
-	dao := dao.NewUserDAO(db)
-	repo := repository.NewUserRepository(dao)
-	svc := service.NewUserService(repo)
-	u := web.NewUserHandler(svc)
-
-	server := web.RegiterRoutes()
+func initWebServer() *gin.Engine {
+	server := gin.Default()
 
 	server.Use(func(ctx *gin.Context) {
 		println("这是第一个middleware")
@@ -59,8 +48,29 @@ func main() {
 		},
 		MaxAge: 12 * time.Hour,
 	}))
+	return server
+}
 
-	u.RegisterRoutes(server)
+func initUser(db *gorm.DB) *web.UserHandler {
+	dao := dao.NewUserDAO(db)
+	repo := repository.NewUserRepository(dao)
+	svc := service.NewUserService(repo)
+	u := web.NewUserHandler(svc)
+	return u
+}
 
-	server.Run(":8080")
+func initDB() *gorm.DB {
+	db, err := gorm.Open(mysql.Open("root:root@tcp(localhost:13316)/webook"))
+	if err != nil {
+		// 只会在初始化过程中panic
+		// panic 相当于整个 goroutine 结束
+		// 一旦初始化过程出错， 应用就不要启动了
+		panic(err)
+	}
+
+	err = dao.InitTable(db)
+	if err != nil {
+		panic(err)
+	}
+	return db
 }
