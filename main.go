@@ -3,12 +3,16 @@ package main
 import (
 	"strings"
 	"time"
+
 	"webbook/internal/repository"
 	"webbook/internal/repository/dao"
 	"webbook/internal/service"
 	"webbook/internal/web"
+	"webbook/internal/web/middleware"
 
 	"github.com/gin-contrib/cors"
+	"github.com/gin-contrib/sessions"
+	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -48,6 +52,24 @@ func initWebServer() *gin.Engine {
 		},
 		MaxAge: 12 * time.Hour,
 	}))
+
+	// 步骤1
+	// session的数据存哪里
+	store := cookie.NewStore([]byte("secret"))
+	// cookie的对应的位置
+	server.Use(sessions.Sessions("mysession", store))
+	// 步骤3 Builder模式的优越性
+	server.Use(middleware.NewLoginMiddlewareBuilder().
+		IgnorePaths("/users/signup").
+		IgnorePaths("/users/login").Buid())
+
+	// // v1
+	// middleware.IgnorePaths = []string{"sss"}
+	// server.Use(middleware.CheckLogin())
+
+	// // 不能忽略sss这条路径
+	// server1 := gin.Default()
+	// server1.Use(middleware.CheckLogin())
 	return server
 }
 

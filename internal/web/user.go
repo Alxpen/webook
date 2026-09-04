@@ -8,6 +8,7 @@ import (
 	"webbook/internal/service"
 
 	regexp "github.com/dlclark/regexp2"
+	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 )
 
@@ -107,7 +108,7 @@ func (u *UserHandler) Login(ctx *gin.Context) {
 		return
 	}
 
-	err := u.svc.Login(ctx, req.Email, req.Password)
+	user, err := u.svc.Login(ctx, req.Email, req.Password)
 	if err == service.ErrInvalidUserOrPassword {
 		ctx.String(http.StatusOK, "用户名或密码不对")
 		return
@@ -117,6 +118,13 @@ func (u *UserHandler) Login(ctx *gin.Context) {
 		return
 	}
 
+	// 步骤2
+	// 登录成功之后取出session
+	// 设置session
+	sess := sessions.Default(ctx)
+	// 随便设置放在session里面的值
+	sess.Set("userId", user.Id)
+	sess.Save()
 	ctx.String(http.StatusOK, "登录成功")
 }
 
@@ -124,4 +132,5 @@ func (u *UserHandler) Edit(ctx *gin.Context) {
 }
 
 func (u *UserHandler) Profile(ctx *gin.Context) {
+	ctx.String(http.StatusOK, "这是你的profile")
 }
