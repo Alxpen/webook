@@ -2,9 +2,14 @@ package repository
 
 import (
 	"context"
+
 	"webbook/internal/domain"
 	"webbook/internal/repository/dao"
 )
+
+var ErrUserDuplicateEmail = dao.ErrUserDuplicateEmail
+
+// var ErrUserDuplicateEmailV1 = fmt.Errorf("%w 邮箱冲突", dao.ErrUserDuplicateEmail)
 
 type UserRepository struct {
 	dao *dao.UserDAO
@@ -25,5 +30,4 @@ func (r *UserRepository) Create(ctx context.Context, u domain.User) error {
 }
 
 func (r *UserRepository) FindByID(ctx context.Context) {
-
 }

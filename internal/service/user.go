@@ -2,11 +2,14 @@ package service
 
 import (
 	"context"
+
 	"webbook/internal/domain"
 	"webbook/internal/repository"
 
 	"golang.org/x/crypto/bcrypt"
 )
+
+var ErrUserDuplicateEmail = repository.ErrUserDuplicateEmail
 
 type UserService struct {
 	repo *repository.UserRepository
