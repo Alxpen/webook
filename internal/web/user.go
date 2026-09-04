@@ -3,6 +3,7 @@ package web
 import (
 	"fmt"
 	"net/http"
+
 	"webbook/internal/domain"
 	"webbook/internal/service"
 
@@ -38,7 +39,6 @@ func (u *UserHandler) RegisterRoutes(server *gin.Engine) {
 	ug.POST("/signup", u.SignUp)
 	ug.POST("/login", u.Login)
 	ug.POST("/edit", u.Edit)
-
 }
 
 func (u *UserHandler) SignUp(ctx *gin.Context) {
@@ -97,13 +97,31 @@ func (u *UserHandler) SignUp(ctx *gin.Context) {
 }
 
 func (u *UserHandler) Login(ctx *gin.Context) {
+	type LoginReq struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
 
+	var req LoginReq
+	if err := ctx.Bind(&req); err != nil {
+		return
+	}
+
+	err := u.svc.Login(ctx, req.Email, req.Password)
+	if err == service.ErrInvalidUserOrPassword {
+		ctx.String(http.StatusOK, "用户名或密码不对")
+		return
+	}
+	if err != nil {
+		ctx.String(http.StatusOK, "系统错误")
+		return
+	}
+
+	ctx.String(http.StatusOK, "登录成功")
 }
 
 func (u *UserHandler) Edit(ctx *gin.Context) {
-
 }
 
 func (u *UserHandler) Profile(ctx *gin.Context) {
-
 }

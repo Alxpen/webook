@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 
 	"webbook/internal/domain"
 	"webbook/internal/repository"
@@ -10,6 +11,7 @@ import (
 )
 
 var ErrUserDuplicateEmail = repository.ErrUserDuplicateEmail
+var ErrInvalidUserOrPassword = errors.New("邮箱或密码不对")
 
 type UserService struct {
 	repo *repository.UserRepository
@@ -20,6 +22,25 @@ func NewUserService(repo *repository.UserRepository) *UserService {
 		repo: repo,
 	}
 }
+
+func (svc *UserService) Login(ctx context.Context, email, password string) error {
+	// 先找用户
+	u, err := svc.repo.FindByEmail(ctx, email)
+	if err == repository.ErrUserNotFound {
+		return ErrInvalidUserOrPassword
+	}
+	if err != nil {
+		return err
+	}
+	// 比较密码
+	err = bcrypt.CompareHashAndPassword([]byte(u.Password), []byte(password))
+	if err != nil {
+		// DEBUG
+		return ErrInvalidUserOrPassword
+	}
+	return nil
+}
+
 
 // domain.User用指针的话需要判空
 func (svc *UserService) SignUp(ctx context.Context, u domain.User) error {
