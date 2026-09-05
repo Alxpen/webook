@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"time"
 
 	"webbook/internal/domain"
 	"webbook/internal/repository/dao"
@@ -44,5 +45,37 @@ func (r *UserRepository) Create(ctx context.Context, u domain.User) error {
 	// 在这里操作缓存
 }
 
-func (r *UserRepository) FindByID(ctx context.Context) {
+func (r *UserRepository) UpdateNonSensitiveInfo(
+	ctx context.Context,
+	u domain.User,
+) error {
+	return r.dao.UpdateUnsensetiveInfo(ctx, dao.User{
+		Id:       u.Id,
+		Nickname: u.Nickname,
+		Birthday: u.Birthday.UnixMilli(),
+		AboutMe:  u.AboutMe,
+	})
+}
+
+func (r *UserRepository) FindByID(
+	ctx context.Context,
+	id int64,
+) (domain.User, error) {
+	u, err := r.dao.FindById(ctx, id)
+	if err != nil {
+		return domain.User{}, err
+	}
+
+	var birthday time.Time
+	if u.Birthday > 0 {
+		birthday = time.UnixMilli(u.Birthday).UTC()
+	}
+
+	return domain.User{
+		Id:       u.Id,
+		Email:    u.Email,
+		Nickname: u.Nickname,
+		Birthday: birthday,
+		AboutMe:  u.AboutMe,
+	}, nil
 }

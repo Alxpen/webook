@@ -10,8 +10,10 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-var ErrUserDuplicateEmail = repository.ErrUserDuplicateEmail
-var ErrInvalidUserOrPassword = errors.New("邮箱或密码不对")
+var (
+	ErrUserDuplicateEmail    = repository.ErrUserDuplicateEmail
+	ErrInvalidUserOrPassword = errors.New("邮箱或密码不对")
+)
 
 type UserService struct {
 	repo *repository.UserRepository
@@ -41,7 +43,6 @@ func (svc *UserService) Login(ctx context.Context, email, password string) (doma
 	return u, nil
 }
 
-
 // domain.User用指针的话需要判空
 func (svc *UserService) SignUp(ctx context.Context, u domain.User) error {
 	// 考虑加密放在哪里的问题
@@ -53,4 +54,18 @@ func (svc *UserService) SignUp(ctx context.Context, u domain.User) error {
 
 	// 然后就是存起来
 	return svc.repo.Create(ctx, u)
+}
+
+func (svc *UserService) UpdateNonSensitiveInfo(
+	ctx context.Context,
+	u domain.User,
+) error {
+	return svc.repo.UpdateNonSensitiveInfo(ctx, u)
+}
+
+func (svc *UserService) Profile(
+	ctx context.Context,
+	id int64,
+) (domain.User, error) {
+	return svc.repo.FindByID(ctx, id)
 }

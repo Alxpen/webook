@@ -1,10 +1,15 @@
 package web
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
+	"strings"
+	"time"
+	"unicode/utf8"
 
 	"webbook/internal/domain"
+	"webbook/internal/repository"
 	"webbook/internal/service"
 
 	regexp "github.com/dlclark/regexp2"
@@ -129,8 +134,123 @@ func (u *UserHandler) Login(ctx *gin.Context) {
 }
 
 func (u *UserHandler) Edit(ctx *gin.Context) {
+	type EditReq struct {
+		Nickname string `json:"nickname"`
+		Birthday string `json:"birthday"`
+		AboutMe  string `json:"aboutMe"`
+	}
+
+	var req EditReq
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"message": "请求数据格式不正确",
+		})
+		return
+	}
+
+	nickname := strings.TrimSpace(req.Nickname)
+	nicknameLength := utf8.RuneCountInString(nickname)
+	if nicknameLength < 2 || nicknameLength > 20 {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"message": "昵称长度必须为2到20个字符",
+		})
+		return
+	}
+
+	const dateLayout = "2006-01-02"
+	birthday, err := time.Parse(dateLayout, req.Birthday)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"message": "生日格式必须为YYYY-MM-DD，例如1992-01-01",
+		})
+		return
+	}
+
+	earliestBirthday := time.Date(1900, 1, 1, 0, 0, 0, 0, time.UTC)
+	if birthday.Before(earliestBirthday) {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"message": "生日不能早于1900-01-01",
+		})
+		return
+	}
+
+	if birthday.After(time.Now().UTC()) {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"message": "生日不能晚于今天",
+		})
+		return
+	}
+
+	aboutMe := strings.TrimSpace(req.AboutMe)
+	if utf8.RuneCountInString(aboutMe) > 1024 {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"message": "个人简介不能超过1024个字符",
+		})
+		return
+	}
+
+	id, ok := sessions.Default(ctx).Get("userId").(int64)
+	if !ok || id <= 0 {
+		ctx.JSON(http.StatusUnauthorized, gin.H{
+			"message": "登录状态无效，请重新登录",
+		})
+		return
+	}
+
+	err = u.svc.UpdateNonSensitiveInfo(
+		ctx.Request.Context(),
+		domain.User{
+			Id:       id,
+			Nickname: nickname,
+			Birthday: birthday,
+			AboutMe:  aboutMe,
+		},
+	)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"message": "保存个人信息失败",
+		})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"message": "个人信息修改成功",
+	})
 }
 
 func (u *UserHandler) Profile(ctx *gin.Context) {
-	ctx.String(http.StatusOK, "这是你的profile")
+	id, ok := sessions.Default(ctx).Get("userId").(int64)
+	if !ok || id <= 0 {
+		ctx.JSON(http.StatusUnauthorized, gin.H{
+			"message": "登录状态无效，请重新登录",
+		})
+		return
+	}
+
+	user, err := u.svc.Profile(ctx.Request.Context(), id)
+	if errors.Is(err, repository.ErrUserNotFound) {
+		ctx.JSON(http.StatusNotFound, gin.H{
+			"message": "用户不存在",
+		})
+		return
+	}
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"message": "获取个人信息失败",
+		})
+		return
+	}
+
+	birthday := ""
+	if !user.Birthday.IsZero() {
+		birthday = user.Birthday.UTC().Format("2006-01-02")
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"id":       user.Id,
+		"email":    user.Email,
+		"nickname": user.Nickname,
+		"birthday": birthday,
+		"aboutMe":  user.AboutMe,
+	})
 }
