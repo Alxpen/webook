@@ -41,6 +41,8 @@ func initWebServer() *gin.Engine {
 		// AllowOrigins:     []string{"https://localhost:3000"},
 		// AllowMethods:     []string{"POST", "GET"},
 		AllowHeaders: []string{"Content-Type", "Authorization"},
+		// 不加这个前端拿不到（我给你的你才能要）
+		ExposeHeaders: []string{"x-jwt-token"},
 		// 是否允许你带认证信息
 		AllowCredentials: true,
 		AllowOriginFunc: func(origin string) bool {
@@ -71,9 +73,13 @@ func initWebServer() *gin.Engine {
 	// cookie的对应的位置
 	server.Use(sessions.Sessions("mysession", store))
 	// 步骤3 Builder模式的优越性
-	server.Use(middleware.NewLoginMiddlewareBuilder().
+	// server.Use(middleware.NewLoginMiddlewareBuilder().
+	// 	IgnorePaths("/users/signup").
+	// 	IgnorePaths("/users/login").Buid())
+	server.Use(middleware.NewLoginJWTMiddlewareBuilder().
 		IgnorePaths("/users/signup").
-		IgnorePaths("/users/login").Buid())
+		IgnorePaths("/users/login").
+		Buid())
 
 	// // v1
 	// middleware.IgnorePaths = []string{"sss"}
