@@ -124,8 +124,33 @@ func (u *UserHandler) Login(ctx *gin.Context) {
 	sess := sessions.Default(ctx)
 	// 随便设置放在session里面的值
 	sess.Set("userId", user.Id)
-	sess.Save()
+	sess.Options(sessions.Options{
+		// 生产环境再开启
+		// Secure: true,
+		// HttpOnly: true,
+		// 登录状态保持多久：去问PM
+		MaxAge: 30 * 60,
+	})
+	if err := sess.Save(); err != nil {
+		ctx.String(http.StatusInternalServerError, "保存登录状态失败，请稍后重试")
+		return
+	}
 	ctx.String(http.StatusOK, "登录成功")
+}
+
+func (u *UserHandler) Logout(ctx *gin.Context) {
+	sess := sessions.Default(ctx)
+	sess.Options(sessions.Options{
+		// 生产环境再开启
+		// Secure: true,
+		// HttpOnly: true,
+		MaxAge: -1,
+	})
+	if err := sess.Save(); err != nil {
+		ctx.String(http.StatusInternalServerError, "退出登录失败，请稍后重试")
+		return
+	}
+	ctx.String(http.StatusOK, "退出登录成功")
 }
 
 func (u *UserHandler) Edit(ctx *gin.Context) {

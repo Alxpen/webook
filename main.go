@@ -12,7 +12,7 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/sessions"
-	"github.com/gin-contrib/sessions/cookie"
+	"github.com/gin-contrib/sessions/redis"
 	"github.com/gin-gonic/gin"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -55,7 +55,19 @@ func initWebServer() *gin.Engine {
 
 	// 步骤1
 	// session的数据存哪里
-	store := cookie.NewStore([]byte("secret"))
+	// 一个基于cookie的store实现
+	// store := cookie.NewStore([]byte("secret"))
+
+	// 两个Key最好是32bit或者64bit
+	// store := memstore.NewStore([]byte("authenticationKey"), []byte("encryptionKey"))
+
+	store, err := redis.NewStore(16,
+		"tcp", "localhost:6379", "root", "",
+		[]byte("51c78d409996e61725278ee9a4dee314eba8da064211e31aa4b915412f438ae8"),
+		[]byte("b8ab129bcbf47d6a7dea78eda2820e37"))
+	if err != nil {
+		panic(err)
+	}
 	// cookie的对应的位置
 	server.Use(sessions.Sessions("mysession", store))
 	// 步骤3 Builder模式的优越性
