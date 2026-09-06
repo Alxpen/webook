@@ -1,6 +1,7 @@
 package main
 
 import (
+	"net/http"
 	"strings"
 	"time"
 
@@ -9,44 +10,44 @@ import (
 	"webbook/internal/service"
 	"webbook/internal/web"
 	"webbook/internal/web/middleware"
-	"webbook/pkg/ginx/middlewares/ratelimit"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/sessions"
 	sessionredis "github.com/gin-contrib/sessions/redis"
 	"github.com/gin-gonic/gin"
-	"github.com/redis/go-redis/v9"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
 
 func main() {
-	db := initDB()
-	redisClient := initRedis()
-	defer redisClient.Close()
-	server := initWebServer(redisClient)
-	u := initUser(db)
-	u.RegisterRoutes(server)
+	// db := initDB()
+	// server := initWebServer()
+	// u := initUser(db)
+	// u.RegisterRoutes(server)
+	server := gin.Default()
+	server.GET("/hello", func(ctx *gin.Context) {
+		ctx.String(http.StatusOK, "hello, welcone")
+	})
 	server.Run(":8080")
 }
 
-func initRedis() *redis.Client {
-	return redis.NewClient(&redis.Options{
-		Addr:                  "localhost:6379",
-		PoolSize:              100,
-		MinIdleConns:          16,
-		ConnMaxIdleTime:       5 * time.Minute,
-		DialTimeout:           time.Second,
-		ReadTimeout:           time.Second,
-		WriteTimeout:          time.Second,
-		PoolTimeout:           time.Second,
-		ContextTimeoutEnabled: true,
-		// 限流脚本会写入记录，关闭自动重试以避免重复执行。
-		MaxRetries: -1,
-	})
-}
+// func initRedis() *redis.Client {
+// 	return redis.NewClient(&redis.Options{
+// 		Addr:                  "localhost:6379",
+// 		PoolSize:              100,
+// 		MinIdleConns:          16,
+// 		ConnMaxIdleTime:       5 * time.Minute,
+// 		DialTimeout:           time.Second,
+// 		ReadTimeout:           time.Second,
+// 		WriteTimeout:          time.Second,
+// 		PoolTimeout:           time.Second,
+// 		ContextTimeoutEnabled: true,
+// 		// 限流脚本会写入记录，关闭自动重试以避免重复执行。
+// 		MaxRetries: -1,
+// 	})
+// }
 
-func initWebServer(redisClient *redis.Client) *gin.Engine {
+func initWebServer() *gin.Engine {
 	server := gin.Default()
 
 	server.Use(func(ctx *gin.Context) {
@@ -76,7 +77,7 @@ func initWebServer(redisClient *redis.Client) *gin.Engine {
 	}))
 
 	// 每个 IP 在任意一分钟内最多通过 100 次请求。
-	server.Use(ratelimit.NewBuilder(redisClient, time.Minute, 100).Build())
+	// server.Use(ratelimit.NewBuilder(redisClient, time.Minute, 100).Build())
 
 	// 步骤1
 	// session的数据存哪里

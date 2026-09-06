@@ -1,0 +1,15 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.34.1-standalone-strict/service-v1.json
+apiVersion: v1
+kind: Service
+metadata: 
+  name: webook
+spec:
+  type: LoadBalancer
+  selector:
+    app: webook
+  ports:    
+    - protocol: TCP
+      name: http
+      port: 80
+      targetPort: 8080  
+  
