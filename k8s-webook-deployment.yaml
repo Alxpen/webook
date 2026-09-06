@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webook
+# specification 规格说明书
+spec:
+# 副本数量
+  replicas: 3
+# 筛选器
+  selector:
+# 和下边的labels: app：对应
+    matchLabels:
+      app: webook
+# 描述 pod 是什么样子
+  template:
+      metadata:
+        labels:
+          app: webook 
+# POD 的具体信息  
+      spec:
+        containers:
+          - name: webook
+            image: alxpen/webook:v0.0.1
+            ports:
+              - containerPort: 8080
