@@ -3,6 +3,7 @@ package web
 import (
 	"fmt"
 	"net/http"
+	"time"
 
 	"webbook/internal/domain"
 	"webbook/internal/service"
@@ -38,6 +39,7 @@ func NewUserHandler(svc *service.UserService) *UserHandler {
 func (u *UserHandler) RegisterRoutes(server *gin.Engine) {
 	ug := server.Group("/users")
 	ug.GET("/profile", u.Profile)
+	ug.GET("/profile", u.ProfileJWT)
 	ug.POST("/signup", u.SignUp)
 	ug.POST("/login", u.LoginJWT)
 	ug.POST("/edit", u.Edit)
@@ -122,7 +124,14 @@ func (u *UserHandler) LoginJWT(ctx *gin.Context) {
 	// 步骤2
 	// 用JWT设置登录态
 	// 生成一个JWTtoken
-	token := jwt.New(jwt.SigningMethodHS512)
+
+	claims := UserClaims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute)),
+		},
+		Uid: user.Id,
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS512, claims)
 	tokenStr, err := token.SignedString([]byte("51c78d409996e61725278ee9a4dee314eba8da064211e31aa4b915412f438ae8"))
 	if err != nil {
 		ctx.String(http.StatusInternalServerError, "系统错误")
@@ -130,7 +139,10 @@ func (u *UserHandler) LoginJWT(ctx *gin.Context) {
 	ctx.Header("x-jwt-token", tokenStr)
 	fmt.Println(tokenStr)
 	fmt.Println(user)
-	
+
+	ctx.Set("claims", claims)
+	ctx.Set("userID", claims.Uid)
+
 	ctx.String(http.StatusOK, "登录成功")
 }
 
@@ -195,4 +207,30 @@ func (u *UserHandler) Edit(ctx *gin.Context) {
 
 func (u *UserHandler) Profile(ctx *gin.Context) {
 	ctx.String(http.StatusOK, "这是你的profile")
+}
+
+func (u *UserHandler) ProfileJWT(ctx *gin.Context) {
+	c, ok := ctx.Get("claims")
+	// 可以断定，必然有claims
+	if !ok {
+		// 可以考虑监控这里
+		ctx.String(http.StatusOK, "系统错误")
+		return
+	}
+	claims, ok := c.(*UserClaims)
+	if !ok {
+		ctx.String(http.StatusOK, "系统错误")
+		return
+	}
+
+	println(claims.Uid)
+	// 补充profile的其他代码
+	ctx.String(http.StatusOK, "这是你的profile")
+}
+
+type UserClaims struct {
+	jwt.RegisteredClaims
+	// 声明你自己的要放进token里面的数据
+	Uid int64
+	// 随便加一些不敏感的数据
 }
