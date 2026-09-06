@@ -9,24 +9,44 @@ import (
 	"webbook/internal/service"
 	"webbook/internal/web"
 	"webbook/internal/web/middleware"
+	"webbook/pkg/ginx/middlewares/ratelimit"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/sessions"
-	"github.com/gin-contrib/sessions/redis"
+	sessionredis "github.com/gin-contrib/sessions/redis"
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
 
 func main() {
 	db := initDB()
-	server := initWebServer()
+	redisClient := initRedis()
+	defer redisClient.Close()
+	server := initWebServer(redisClient)
 	u := initUser(db)
 	u.RegisterRoutes(server)
 	server.Run(":8080")
 }
 
-func initWebServer() *gin.Engine {
+func initRedis() *redis.Client {
+	return redis.NewClient(&redis.Options{
+		Addr:                  "localhost:6379",
+		PoolSize:              100,
+		MinIdleConns:          16,
+		ConnMaxIdleTime:       5 * time.Minute,
+		DialTimeout:           time.Second,
+		ReadTimeout:           time.Second,
+		WriteTimeout:          time.Second,
+		PoolTimeout:           time.Second,
+		ContextTimeoutEnabled: true,
+		// 限流脚本会写入记录，关闭自动重试以避免重复执行。
+		MaxRetries: -1,
+	})
+}
+
+func initWebServer(redisClient *redis.Client) *gin.Engine {
 	server := gin.Default()
 
 	server.Use(func(ctx *gin.Context) {
@@ -55,6 +75,9 @@ func initWebServer() *gin.Engine {
 		MaxAge: 12 * time.Hour,
 	}))
 
+	// 每个 IP 在任意一分钟内最多通过 100 次请求。
+	server.Use(ratelimit.NewBuilder(redisClient, time.Minute, 100).Build())
+
 	// 步骤1
 	// session的数据存哪里
 	// 一个基于cookie的store实现
@@ -63,7 +86,7 @@ func initWebServer() *gin.Engine {
 	// 两个Key最好是32bit或者64bit
 	// store := memstore.NewStore([]byte("authenticationKey"), []byte("encryptionKey"))
 
-	store, err := redis.NewStore(16,
+	store, err := sessionredis.NewStore(16,
 		"tcp", "localhost:6379", "root", "",
 		[]byte("51c78d409996e61725278ee9a4dee314eba8da064211e31aa4b915412f438ae8"),
 		[]byte("b8ab129bcbf47d6a7dea78eda2820e37"))

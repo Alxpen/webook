@@ -62,6 +62,12 @@ func (l *LoginJWTMiddlewareBuilder) Buid() gin.HandlerFunc {
 			ctx.AbortWithStatus(http.StatusUnauthorized)
 			return
 		}
+		if claims.UserAgent != ctx.Request.UserAgent() {
+			// 严重的安全问题
+			// 需要监控
+			ctx.AbortWithStatus(http.StatusUnauthorized)
+			return 
+		}
 
 		// 每十秒刷新一次
 		now := time.Now()
@@ -74,7 +80,7 @@ func (l *LoginJWTMiddlewareBuilder) Buid() gin.HandlerFunc {
 			}
 			ctx.Header("x-jwt-token", tokenStr)
 		}
-		
+
 		ctx.Set("claims", claims)
 	}
 }
