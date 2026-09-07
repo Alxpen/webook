@@ -38,7 +38,7 @@ func NewUserHandler(svc *service.UserService) *UserHandler {
 
 func (u *UserHandler) RegisterRoutes(server *gin.Engine) {
 	ug := server.Group("/users")
-	ug.GET("/profile", u.Profile)
+	// ug.GET("/profile", u.Profile)
 	ug.GET("/profile", u.ProfileJWT)
 	ug.POST("/signup", u.SignUp)
 	ug.POST("/login", u.LoginJWT)

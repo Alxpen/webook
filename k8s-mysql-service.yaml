@@ -1,0 +1,15 @@
+# yaml-language-server: $schema=.vscode/schemas/kubernetes-service.json
+apiVersion: v1
+kind: Service
+metadata:
+  name: webook-mysql
+spec:
+  selector:
+    app: webook-mysql
+  ports:
+    - protocol: TCP
+    #   访问的端口
+      port: 11309
+      targetPort: 3306
+      nodePort: 30002
+  type: NodePort
