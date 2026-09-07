@@ -5,26 +5,29 @@ import (
 	"strings"
 	"time"
 
+	"webbook/config"
 	"webbook/internal/repository"
 	"webbook/internal/repository/dao"
 	"webbook/internal/service"
 	"webbook/internal/web"
 	"webbook/internal/web/middleware"
+	"webbook/pkg/ginx/middlewares/ratelimit"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/sessions"
 	sessionredis "github.com/gin-contrib/sessions/redis"
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
 
 func main() {
-	// db := initDB()
-	// server := initWebServer()
-	// u := initUser(db)
-	// u.RegisterRoutes(server)
-	server := gin.Default()
+	db := initDB()
+	server := initWebServer()
+	u := initUser(db)
+	u.RegisterRoutes(server)
+
 	server.GET("/hello", func(ctx *gin.Context) {
 		ctx.String(http.StatusOK, "hello, welcone")
 	})
@@ -76,8 +79,12 @@ func initWebServer() *gin.Engine {
 		MaxAge: 12 * time.Hour,
 	}))
 
+	redisClient := redis.NewClient(&redis.Options{
+		Addr: config.AppConfig.Redis.Addr,
+	})
+
 	// 每个 IP 在任意一分钟内最多通过 100 次请求。
-	// server.Use(ratelimit.NewBuilder(redisClient, time.Minute, 100).Build())
+	server.Use(ratelimit.NewBuilder(redisClient, time.Minute, 100).Build())
 
 	// 步骤1
 	// session的数据存哪里
@@ -88,7 +95,7 @@ func initWebServer() *gin.Engine {
 	// store := memstore.NewStore([]byte("authenticationKey"), []byte("encryptionKey"))
 
 	store, err := sessionredis.NewStore(16,
-		"tcp", "localhost:6379", "root", "",
+		"tcp", config.AppConfig.Redis.Addr, "root", "",
 		[]byte("51c78d409996e61725278ee9a4dee314eba8da064211e31aa4b915412f438ae8"),
 		[]byte("b8ab129bcbf47d6a7dea78eda2820e37"))
 	if err != nil {
@@ -124,7 +131,7 @@ func initUser(db *gorm.DB) *web.UserHandler {
 }
 
 func initDB() *gorm.DB {
-	db, err := gorm.Open(mysql.Open("root:root@tcp(localhost:13316)/webook"))
+	db, err := gorm.Open(mysql.Open(config.AppConfig.DB.DSN))
 	if err != nil {
 		// 只会在初始化过程中panic
 		// panic 相当于整个 goroutine 结束

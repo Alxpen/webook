@@ -20,6 +20,6 @@ spec:
       spec:
         containers:
           - name: webook
-            image: alxpen/webook:v0.0.1
+            image: alxpen/webook:v0.0.2
             ports:
               - containerPort: 8080

@@ -1,0 +1,21 @@
+# pvc => PsersistentVolumeClaim
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+# MYSQL 要用的东西
+# 对比 K8s 有什么
+  name: webook-mysql-claim
+  labels:
+    app: webook-mysql-claim
+spec:
+# 随便取名, 要和pv对应
+  storageClassName: suibian
+
+# 需要什么访问模式
+  accessModes:
+    - ReadWriteOnce
+    # - ReadOnlyMany
+    # - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi
