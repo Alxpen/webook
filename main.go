@@ -34,21 +34,6 @@ func main() {
 	server.Run(":8080")
 }
 
-// func initRedis() *redis.Client {
-// 	return redis.NewClient(&redis.Options{
-// 		Addr:                  "localhost:6379",
-// 		PoolSize:              100,
-// 		MinIdleConns:          16,
-// 		ConnMaxIdleTime:       5 * time.Minute,
-// 		DialTimeout:           time.Second,
-// 		ReadTimeout:           time.Second,
-// 		WriteTimeout:          time.Second,
-// 		PoolTimeout:           time.Second,
-// 		ContextTimeoutEnabled: true,
-// 		// 限流脚本会写入记录，关闭自动重试以避免重复执行。
-// 		MaxRetries: -1,
-// 	})
-// }
 
 func initWebServer() *gin.Engine {
 	server := gin.Default()
