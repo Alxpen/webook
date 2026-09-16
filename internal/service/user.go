@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 
-	"webbook/internal/domain"
-	"webbook/internal/repository"
+	"webook/internal/domain"
+	"webook/internal/repository"
 
 	"golang.org/x/crypto/bcrypt"
 )

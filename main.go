@@ -5,16 +5,17 @@ import (
 	"strings"
 	"time"
 
-	"webbook/config"
-	"webbook/internal/repository"
-	"webbook/internal/repository/cache"
-	"webbook/internal/repository/dao"
-	"webbook/internal/service"
-	"webbook/internal/service/sms"
-	"webbook/internal/service/sms/tencent"
-	"webbook/internal/web"
-	"webbook/internal/web/middleware"
-	"webbook/pkg/ginx/middlewares/ratelimit"
+	"webook/config"
+	"webook/internal/repository"
+	"webook/internal/repository/cache"
+	"webook/internal/repository/dao"
+	"webook/internal/service"
+	"webook/internal/service/sms"
+	"webook/internal/service/sms/localsms"
+	"webook/internal/service/sms/tencent"
+	"webook/internal/web"
+	"webook/internal/web/middleware"
+	"webook/pkg/ginx/middlewares/ratelimit"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/sessions"
@@ -48,6 +49,13 @@ func initRedis() *redis.Client {
 	})
 }
 
+// initSmsMemoryService 本地内存短信服务
+// 不会真的发短信，验证码直接打印到控制台，本地开发用这个
+func initSmsMemoryService() sms.Service {
+	return localsms.NewService()
+}
+
+// initSMSService 腾讯云短信服务，线上用这个
 func initSMSService() sms.Service {
 	// 腾讯云的密钥和地域
 	credential := common.NewCredential(
@@ -145,7 +153,11 @@ func initUser(db *gorm.DB, rdb redis.Cmdable) *web.UserHandler {
 	// 验证码：cache -> repository -> service，短信服务注入进去
 	codeCache := cache.NewCodeCache(rdb)
 	codeRepo := repository.NewCodeRepository(codeCache)
-	codeSvc := service.NewCodeService(codeRepo, initSMSService())
+	// 本地开发用 localsms，验证码会打印到控制台
+	smsSvc := initSmsMemoryService()
+	// 上线时换成腾讯云短信
+	// smsSvc := initSMSService()
+	codeSvc := service.NewCodeService(codeRepo, smsSvc)
 
 	u := web.NewUserHandler(svc, codeSvc)
 	return u

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"webbook/internal/domain"
+	"webook/internal/domain"
 
 	"github.com/redis/go-redis/v9"
 )

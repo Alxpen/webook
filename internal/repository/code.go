@@ -3,7 +3,7 @@ package repository
 import (
 	"context"
 
-	"webbook/internal/repository/cache"
+	"webook/internal/repository/cache"
 )
 
 var (

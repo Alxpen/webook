@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"math/rand"
 
-	"webbook/internal/repository"
-	"webbook/internal/service/sms"
+	"webook/internal/repository"
+	"webook/internal/service/sms"
 )
 
 const codeTplId = "1877556"

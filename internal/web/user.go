@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"time"
 
-	"webbook/internal/domain"
-	"webbook/internal/service"
+	"webook/internal/domain"
+	"webook/internal/service"
 
 	regexp "github.com/dlclark/regexp2"
 	"github.com/gin-contrib/sessions"

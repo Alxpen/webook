@@ -1,4 +1,4 @@
-module webbook
+module webook
 
 go 1.26.4
 
