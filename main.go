@@ -34,7 +34,6 @@ func main() {
 	server.Run(":8080")
 }
 
-
 func initWebServer() *gin.Engine {
 	server := gin.Default()
 
