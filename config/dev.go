@@ -9,4 +9,11 @@ var AppConfig = Config{
 	Redis: RedisConfig{
 		Addr: "localhost:6379",
 	},
+	// 腾讯云短信，去控制台拿自己账号的值填进来
+	SMS: SMSConfig{
+		AppId:     "",
+		SignName:  "",
+		SecretId:  "",
+		SecretKey: "",
+	},
 }

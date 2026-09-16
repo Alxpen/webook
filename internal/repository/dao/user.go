@@ -2,6 +2,7 @@ package dao
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"time"
 
@@ -10,8 +11,8 @@ import (
 )
 
 var (
-	ErrUserDuplicateEmail = errors.New("邮箱冲突")
-	ErrUserNotFound = gorm.ErrRecordNotFound
+	ErrUserNotFound  = gorm.ErrRecordNotFound
+	ErrUserDuplicate = errors.New("邮箱或手机号冲突")
 )
 
 type UserDAO struct {
@@ -24,15 +25,23 @@ func NewUserDAO(db *gorm.DB) *UserDAO {
 	}
 }
 
-func (dao *UserDAO) FindByEmail(ctx context.Context, email string)(User, error) {
+func (dao *UserDAO) FindByEmail(ctx context.Context, email string) (User, error) {
 	var u User
 	err := dao.db.WithContext(ctx).Where("email=?", email).First(&u).Error
 	return u, err
 }
 
-func (dao *UserDAO) FindById(ctx context.Context, id int64)(User, error) {
+func (dao *UserDAO) FindById(ctx context.Context, id int64) (User, error) {
 	var u User
 	err := dao.db.WithContext(ctx).Where("id=?", id).First(&u).Error
+	return u, err
+}
+
+func (dao *UserDAO) FindByPhone(ctx context.Context, phone string) (User, error) {
+	var u User
+	err := dao.db.WithContext(ctx).
+		Where("phone = ?", phone).
+		First(&u).Error
 	return u, err
 }
 
@@ -47,7 +56,7 @@ func (dao *UserDAO) Insert(ctx context.Context, u User) error {
 		const uniqueConflictsErrNo uint16 = 1062
 		if mysqlErr.Number == uniqueConflictsErrNo {
 			// 邮箱冲突
-			return ErrUserDuplicateEmail
+			return ErrUserDuplicate
 		}
 	}
 	return err
@@ -56,9 +65,11 @@ func (dao *UserDAO) Insert(ctx context.Context, u User) error {
 // User 直接对应数据库表结构
 // 有些人叫做 entity， 有些人叫做 model, 有些人叫做 PO(Persistent Objext)
 type User struct {
-	Id       int64 `gorm:"primaryKey,autoIncrement"`
-	// 唯一索引
-	Email    string `gorm:"unique"`
+	Id int64 `gorm:"primaryKey,autoIncrement"`
+
+	// 需要导入 database/sql
+	Email    sql.NullString `gorm:"uniqueIndex"`
+	Phone    sql.NullString `gorm:"uniqueIndex"`
 	Password string
 
 	// 增加字段
@@ -69,4 +80,3 @@ type User struct {
 	// 更新时间， 毫秒数
 	Utime int64
 }
-

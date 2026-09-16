@@ -11,9 +11,21 @@ import (
 
 const codeTplId = "1877556"
 
+var (
+	ErrCodeSendTooMany = repository.ErrCodeSendTooMany
+	ErrCodeVerifyTooManyTimes = repository.ErrCodeVerifyTooManyTimes
+)
+
 type CodeService struct {
 	repo   *repository.CodeRepository
 	smsSvc sms.Service
+}
+
+func NewCodeService(repo *repository.CodeRepository, smsSvc sms.Service) *CodeService {
+	return &CodeService{
+		repo:   repo,
+		smsSvc: smsSvc,
+	}
 }
 
 // Send 生成一个随机验证码，并发送
@@ -47,5 +59,5 @@ func (svc *CodeService) Verify(ctx context.Context,
 
 func (svc *CodeService) generateCode() string {
 	num := rand.Intn(1000000)
-	return fmt.Sprintf("%6d", num)
+	return fmt.Sprintf("%06d", num)
 }

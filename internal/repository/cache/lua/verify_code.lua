@@ -1,25 +1,31 @@
 local key = KEYS[1]
--- 使用次数，也就是验证次数
 local cntKey = key .. ":cnt"
--- 预期中的验证码
-local expectedCode = ARGV[1]
+local inputCode = ARGV[1]
 
-local cnt = tonumber(redis.call("get", cntKey))
 local code = redis.call("get", key)
+local cnt = tonumber(redis.call("get", cntKey))
 
--- 验证次数已经耗尽了
+-- 未发送、已过期，或者次数记录异常
+if not code or not cnt then
+    return -2
+end
+
+-- 已使用，或者三次错误机会已经耗尽
 if cnt <= 0 then
     return -1
 end
--- 验证码相等
--- 不能删除验证码，因为如果你删除了就有可能有人跟你过不去
--- 立刻再次再次发送验证码
-if code == expectedCode then
-    -- 把次数标记位 -1，认为验证码不可用
-    redis.call("set", cntKey, -1)
+
+if code == inputCode then
+    -- 保留验证码 key，避免绕过发送间隔。
+    -- 次数标记失效，并跟随验证码一起过期。
+    local ttl = redis.call("pttl", key)
+    if ttl <= 0 then
+        return -2
+    end
+
+    redis.call("set", cntKey, -1, "PX", ttl)
     return 0
-else
-    -- 可能用户手一抖输错了
-    redis.call("decr", cntKey, -1)
-    return -2
 end
+
+redis.call("decr", cntKey)
+return -2

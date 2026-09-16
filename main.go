@@ -7,8 +7,11 @@ import (
 
 	"webbook/config"
 	"webbook/internal/repository"
+	"webbook/internal/repository/cache"
 	"webbook/internal/repository/dao"
 	"webbook/internal/service"
+	"webbook/internal/service/sms"
+	"webbook/internal/service/sms/tencent"
 	"webbook/internal/web"
 	"webbook/internal/web/middleware"
 	"webbook/pkg/ginx/middlewares/ratelimit"
@@ -18,14 +21,19 @@ import (
 	sessionredis "github.com/gin-contrib/sessions/redis"
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
+	"github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common"
+	"github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common/profile"
+	smsv20210111 "github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/sms/v20210111"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
 
 func main() {
 	db := initDB()
-	server := initWebServer()
-	u := initUser(db)
+	// redisClient 只建一次，限流、验证码缓存、用户缓存共用一个连接池
+	redisClient := initRedis()
+	server := initWebServer(redisClient)
+	u := initUser(db, redisClient)
 	u.RegisterRoutes(server)
 
 	server.GET("/hello", func(ctx *gin.Context) {
@@ -34,7 +42,29 @@ func main() {
 	server.Run(":8080")
 }
 
-func initWebServer() *gin.Engine {
+func initRedis() *redis.Client {
+	return redis.NewClient(&redis.Options{
+		Addr: config.AppConfig.Redis.Addr,
+	})
+}
+
+func initSMSService() sms.Service {
+	// 腾讯云的密钥和地域
+	credential := common.NewCredential(
+		config.AppConfig.SMS.SecretId,
+		config.AppConfig.SMS.SecretKey,
+	)
+	client, err := smsv20210111.NewClient(credential,
+		"ap-guangzhou", profile.NewClientProfile())
+	if err != nil {
+		// 初始化过程中出错，就不要启动了
+		panic(err)
+	}
+	return tencent.NewService(client,
+		config.AppConfig.SMS.AppId, config.AppConfig.SMS.SignName)
+}
+
+func initWebServer(redisClient *redis.Client) *gin.Engine {
 	server := gin.Default()
 
 	server.Use(func(ctx *gin.Context) {
@@ -63,10 +93,7 @@ func initWebServer() *gin.Engine {
 		MaxAge: 12 * time.Hour,
 	}))
 
-	redisClient := redis.NewClient(&redis.Options{
-		Addr: config.AppConfig.Redis.Addr,
-	})
-
+	// redisClient 由 main 传进来，不要在这里初始化
 	// 每个 IP 在任意一分钟内最多通过 100 次请求。
 	server.Use(ratelimit.NewBuilder(redisClient, time.Minute, 100).Build())
 
@@ -91,9 +118,12 @@ func initWebServer() *gin.Engine {
 	// server.Use(middleware.NewLoginMiddlewareBuilder().
 	// 	IgnorePaths("/users/signup").
 	// 	IgnorePaths("/users/login").Buid())
+	// 发验证码的时候还没登录，不能拦
 	server.Use(middleware.NewLoginJWTMiddlewareBuilder().
 		IgnorePaths("/users/signup").
 		IgnorePaths("/users/login").
+		IgnorePaths("/users/login_sms/code/send").
+		IgnorePaths("/users/login_sms").
 		Buid())
 
 	// // v1
@@ -106,11 +136,18 @@ func initWebServer() *gin.Engine {
 	return server
 }
 
-func initUser(db *gorm.DB) *web.UserHandler {
-	dao := dao.NewUserDAO(db)
-	repo := repository.NewUserRepository(dao)
+func initUser(db *gorm.DB, rdb redis.Cmdable) *web.UserHandler {
+	userDAO := dao.NewUserDAO(db)
+	userCache := cache.NewUserCache(rdb)
+	repo := repository.NewUserRepository(userCache, userDAO)
 	svc := service.NewUserService(repo)
-	u := web.NewUserHandler(svc)
+
+	// 验证码：cache -> repository -> service，短信服务注入进去
+	codeCache := cache.NewCodeCache(rdb)
+	codeRepo := repository.NewCodeRepository(codeCache)
+	codeSvc := service.NewCodeService(codeRepo, initSMSService())
+
+	u := web.NewUserHandler(svc, codeSvc)
 	return u
 }
 
